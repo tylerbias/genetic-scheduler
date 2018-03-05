@@ -1,0 +1,30 @@
+import hit_the_target
+import evolution_simulator
+from flask import Flask, render_template, request, Response
+from flask_bootstrap import Bootstrap
+import Tkinter
+
+
+app = Flask(__name__)
+bootstrap = Bootstrap(app)
+
+# for x in range(500,490,-1):
+# 	print hit_the_target.go(x, 0, 1000, True)
+
+eco = evolution_simulator.ecosystem()
+
+
+@app.route('/')
+def home_page():
+	return render_template("index.html", creation = False)
+
+@app.route('/spawn')
+def spawn_first_generation():
+	eco.first_generation()
+	return render_template("index.html", creation = True, filepath = eco.most_recently_created)
+
+@app.route('/creatures/<filepath>')
+def view_creature_set(filepath):
+	with open("./creatures/%s" % filepath, "r") as f:
+		return Response(f.read(), mimetype="text/plain")
+
