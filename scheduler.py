@@ -1,29 +1,12 @@
 import json
 import random
 
-class schedule():
+class scheduler():
 
 	def __init__(self, employees, days, shifts):
-		self.emps = {}
-		for x in range(0, len(employees)):
-			self.emps[employees[x]] = self.employee(7, 0)
+		self.emps = employees
 		self.week = self.week(days, shifts)
 		self.fitness = 500
-
-	def get_emp_shifts(self, name):
-		return self.emps[name].current
-
-	def get_max(self, name):
-		return self.emps[name].max_shifts
-
-	def set_max(self, name, maximum):
-		self.emps[name].max_shifts = maximum
-
-	def get_min(self, name):
-		return self.emps[name].min_shifts
-
-	def set_min(self, name, minimum):
-		self.emps[name].min_shifts = minimum
 
 	def get_days(self):
 		return self.week.days
@@ -38,13 +21,10 @@ class schedule():
 		return self.fitness
 
 
-
-
-
-
 	class employee():
 
-		def __init__(self, maximum, minimum):
+		def __init__(self, name, minimum, maximum):
+			self.name = name
 			self.max_shifts = maximum
 			self.min_shifts = minimum
 			self.current = []
@@ -72,20 +52,20 @@ class schedule():
 		self.fitness -= (flaws * 25)
 
 	def define_fitness(self):
-		for name in self.emps:
-			assigned = len(self.get_emp_shifts(name))
-			if assigned > self.get_max(name):
-				diff = assigned - self.get_max(name)
+		for emp in self.emps:
+			assigned = len(emp.current)
+			if assigned > emp.max_shifts:
+				diff = assigned - emp.max_shifts
 				self.flaw(diff)
-			elif assigned < self.get_min(name):
-				diff = self.get_min(name) - assigned
+			elif assigned < emp.min_shifts:
+				diff = emp.min_shifts - assigned
 				self.flaw(diff)
 
 			double_count = 0
 			for day in self.get_days():
 				counter = 0
 				for shift in self.get_shifts(day):
-					if self.get_shift_emp(day, shift) == name:
+					if self.get_shift_emp(day, shift) == emp.name:
 						counter += 1
 				if counter > 1:
 					double_count += (counter-1)
@@ -96,33 +76,35 @@ class schedule():
 
 
 def random_schedule(employees, days, shifts):
-	sched = schedule(employees, days, shifts)
-	for x in sched.week.days:
-		for y in sched.week.days[x]:
-			randomName = random.choice(sched.emps.keys())
-			sched.week.days[x][y] = randomName
-			emp = sched.emps[randomName]
-			emp.current.append((x, y))
+	sched = scheduler(employees, days, shifts)
+	for day in sched.week.days:
+		for shift in sched.week.days[day]:
+			randomEmp = random.choice(sched.emps)
+			sched.week.days[day][shift] = randomEmp.name
+			randomEmp.current.append((day, shift))
 
 	sched.define_fitness()
 
 	return sched
 
-emp = ["Tyler", "Isis"]
+# emps = []
+
+# emps.append(scheduler.employee('Tyler', 0, 6))
+# emps.append(scheduler.employee('Isis', 0, 6))
 
 
-best = random_schedule(emp, 7, 2)
-for i in range(0, 100):
-	temp = random_schedule(emp, 7, 2)
-	if temp.get_fitness() > best.get_fitness():
-		best = temp
+# best = random_schedule(emps, 7, 2)
+# for i in range(0, 10000):
+# 	temp = random_schedule(emps, 7, 2)
+# 	if temp.get_fitness() > best.get_fitness():
+# 		best = temp
 
-days = best.get_days()
-for day in days:
-	print day
-	for shift in sorted(best.get_shifts(day)):
-		print "%s belongs to %s" % (shift, best.get_shift_emp(day, shift))
-print best.get_fitness()
+# days = best.get_days()
+# for day in days:
+# 	print day
+# 	for shift in sorted(best.get_shifts(day)):
+# 		print "%s belongs to %s" % (shift, best.get_shift_emp(day, shift))
+# print best.get_fitness()
 
 
 
