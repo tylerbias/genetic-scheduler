@@ -81,9 +81,16 @@ def random_schedule(employees, days, shifts):
 		for shift in sched.week.days[day]:
 			randomEmp = random.choice(sched.emps)
 			sched.week.days[day][shift] = randomEmp.name
-			randomEmp.current.append((day, shift))
+
+	for emp in sched.emps:
+		emp.current =[]
+		for day in sched.week.days:
+			for shift in sched.week.days[day]:
+				if shift == emp.name:
+					emp.current.append((day, shift))
 
 	sched.define_fitness()
+	print sched.get_fitness()
 
 	return sched
 

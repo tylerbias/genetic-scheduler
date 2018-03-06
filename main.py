@@ -139,7 +139,7 @@ class schedule_frame(Frame):
 
 	def generate(self):
 		best = scheduler.random_schedule(self.employeeList, 7, 2)
-		for i in range(0, 10000):
+		for i in range(0, 1000):
 			temp = scheduler.random_schedule(self.employeeList, 7, 2)
 			if temp.get_fitness() > best.get_fitness():
 				best = temp
@@ -149,6 +149,7 @@ class schedule_frame(Frame):
 			print day
 			for shift in sorted(best.get_shifts(day)):
 				print "%s belongs to %s" % (shift, best.get_shift_emp(day, shift))
+		print best
 		print best.get_fitness()
 
 
