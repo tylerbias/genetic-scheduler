@@ -1,24 +1,35 @@
 import json
 import random
+import copy
+from operator import itemgetter
+
+## TO DO: Just wrote day class. Need to follow code, rework any function dependent on day / week (honestly, most of it)
+
+
+DAY_LIST = ['Sunday',
+			'Monday',
+			'Tuesday',
+			'Wednesday',
+			'Thursday',
+			'Friday',
+			'Saturday']
+
+# Object instance. Set as default parameter in some functions. Function checks to see if it has been handed DEFAULT, and reacts accordingly.
+DEFAULT = object()
 
 class scheduler():
 
-	def __init__(self, employees, days, shifts):
+	def __init__(self, employees, week):
 		self.emps = employees
-		self.week = self.week(days, shifts)
+		self.week = week
 		self.fitness = 500
-
-	def get_days(self):
-		return self.week.days
-
-	def get_shifts(self, day):
-		return self.week.days[day]
-
-	def get_shift_emp(self, day, shift):
-		return self.week.days[day][shift]
+		self.shifts = {}
 
 	def get_fitness(self):
 		return self.fitness
+
+	def get_week(self):
+		return self.week
 
 
 	class employee():
@@ -27,7 +38,8 @@ class scheduler():
 			self.name = name
 			self.max_shifts = maximum
 			self.min_shifts = minimum
-			self.current = []
+			# Current shifts. Dictionary indexed by day of the week, containing start and end times as tuple
+			self.current = {}
 
 		def set_max(maximum):
 			self.max_shifts = maximum
@@ -35,83 +47,139 @@ class scheduler():
 		def set_min(minimum):
 			self.min_shifts = minimum
 
-	class week():
 
-		def __init__(self, days, shifts):
-			self.days = {}
-			for i in range(0, days):
-				self.days[i] = self.gen_shifts(shifts)
+	class day():
 
-		def gen_shifts(self, shifts):
-			x = {}
-			for i in range(0, shifts):
-				x[("s%i" % (i+1))] = "NULL"
-			return x
+		# opening and closing are integers, truncated military time
+		# requirements is a dictionary, indexed by hour in truncated military time (int), and storing an int
+		# that specifies the user's requirements for coverage for the hour in question
+		# Coverage is updated as an employee is given a shift that cross that hour. Incremented by one.
+		def __init__(self, opening, closing, requirements = DEFAULT):
+			self.hours = []
+			self.coverage = []
+			self.opening = opening
+			self.closing = closing
+			for hr in range(0, 24):
+				if hr >= opening and hr <= closing:
+					self.hours.append(1) #Initialize all hours when the store is open as a minimum of 1
+				else:
+					self.hours.append(0) #Initialize all hours as no minimum employee
+
+			# Once minimum coverage requirements are established, assign user specified coverage requirements
+			if requirements is not DEFAULT:
+				for key in requirements:
+					self.hours[key] = requirements[key]
+
+			for hr in range(0, 24):
+				self.coverage.append(0)
+
+
+
+
+	# class week():
+
+	# 	# Days are stored in a dictionary indexed by the name of the day of the week.
+	# 	# Each day has 
+	# 	def __init__(self, days, shifts):
+	# 		self.days = {}
+	# 		for day in shifts:
+	# 			self.days[day] = self.gen_shifts(shifts)
+
+	# 	def gen_shifts(self, shifts):
+	# 		x = {}
+	# 		for i in range(0, shifts):
+	# 			x[("s%i" % (i+1))] = "NULL"
+	# 		return x
 
 	def flaw(self, flaws):
 		self.fitness -= (flaws * 25)
 
 	def define_fitness(self):
 		for emp in self.emps:
-			assigned = len(emp.current)
-			if assigned > emp.max_shifts:
-				diff = assigned - emp.max_shifts
-				self.flaw(diff)
-			elif assigned < emp.min_shifts:
-				diff = emp.min_shifts - assigned
-				self.flaw(diff)
+			goal = ((7*11)/3)
+			total = 0
+			for shift in emp.current:
+				shiftLength = emp.current[shift]['end'] - emp.current[shift]['start']
+				total += shiftLength
 
-			double_count = 0
-			for day in self.get_days():
-				counter = 0
-				for shift in self.get_shifts(day):
-					if self.get_shift_emp(day, shift) == emp.name:
-						counter += 1
-				if counter > 1:
-					double_count += (counter-1)
-					self.flaw(double_count)
+			difference = total - goal
+			if difference < 0:
+				difference = 0
+			self.flaw(difference)
+
+	def define_shifts(self):
+		shiftDict = {}
+		for day in DAY_LIST:
+			shiftDict.update({day: {}})
+		for day in DAY_LIST:
+			for emp in self.emps:
+				for key in emp.current:
+					if key is day:
+						shiftDict[day].update({emp.name: ("%s to %s" % (emp.current[day]['start'], emp.current[day]['end']))})
+
+		self.shifts = shiftDict
 
 
 
 
 
-def random_schedule(employees, days, shifts):
-	sched = scheduler(employees, days, shifts)
-	for day in sched.week.days:
-		for shift in sched.week.days[day]:
-			randomEmp = random.choice(sched.emps)
-			sched.week.days[day][shift] = randomEmp.name
 
-	for emp in sched.emps:
-		emp.current =[]
-		for day in sched.week.days:
-			for shift in sched.week.days[day]:
-				if shift == emp.name:
-					emp.current.append((day, shift))
 
+
+def random_schedule(employees, week):
+	sched = scheduler(employees, week)
+
+	for day in DAY_LIST:
+		availableEmps = list(sched.emps)
+		for hr in range(0, 24):
+			if sched.week[day].hours[hr] is not 0:
+				while sched.week[day].coverage[hr] < sched.week[day].hours[hr]:
+					if len(availableEmps) is 0:
+						break
+					chosenEmp = random.choice(availableEmps)
+					availableEmps.remove(chosenEmp)
+					shiftEnd = hr + random.randint(4, 7)
+					if shiftEnd >= (sched.week[day].closing-3):
+						shiftEnd = sched.week[day].closing
+					chosenEmp.current[day] = {'start': hr, 'end': shiftEnd}
+					for x in range(hr, shiftEnd+1):
+						sched.week[day].coverage[x] += 1
+
+	sched.define_shifts()
 	sched.define_fitness()
-	print sched.get_fitness()
 
 	return sched
 
-# emps = []
+## The code below is used for isolated testing of scheduler functions.
 
-# emps.append(scheduler.employee('Tyler', 0, 6))
-# emps.append(scheduler.employee('Isis', 0, 6))
+emps = []
+
+emps.append(scheduler.employee('Tyler', 0, 6))
+emps.append(scheduler.employee('Isis', 0, 6))
+emps.append(scheduler.employee('Dana', 0, 6))
+
+week = {}
+for dayName in DAY_LIST:
+	week[dayName] = scheduler.day(10, 21)
 
 
-# best = random_schedule(emps, 7, 2)
-# for i in range(0, 10000):
-# 	temp = random_schedule(emps, 7, 2)
-# 	if temp.get_fitness() > best.get_fitness():
-# 		best = temp
+originalCopyEmps = copy.deepcopy(emps)
+originalCopyWeek = copy.deepcopy(week)
+best = random_schedule(originalCopyEmps, originalCopyWeek)
 
-# days = best.get_days()
-# for day in days:
-# 	print day
-# 	for shift in sorted(best.get_shifts(day)):
-# 		print "%s belongs to %s" % (shift, best.get_shift_emp(day, shift))
-# print best.get_fitness()
+for i in range(0, 100):
+	newCopyEmps = copy.deepcopy(emps)
+	newCopyWeek = copy.deepcopy(week)
+	temp = random_schedule(newCopyEmps, newCopyWeek)
+	if temp.get_fitness() > best.get_fitness():
+		best = temp
+
+
+for day in best.shifts:
+	print day
+	for shift in sorted(best.shifts[day].iteritems(), key=itemgetter(1)):
+		print shift
+print best.get_fitness()
 
 
 
